@@ -78,7 +78,7 @@ type methodNotFoundError struct{ method string }
 func (e *methodNotFoundError) ErrorCode() int { return -32601 }
 
 func (e *methodNotFoundError) Error() string {
-	return fmt.Sprintf("the method %s does not exist/is not available", e.method)
+	return fmt.Sprintf("the method %s does not exist/is not available [New]", e.method)
 }
 
 type notificationsUnsupportedError struct{}

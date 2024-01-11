@@ -19,6 +19,7 @@ package beacon
 import (
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/consensus/clique"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -67,6 +68,10 @@ func New(ethone consensus.Engine) *Beacon {
 		panic("nested consensus engine")
 	}
 	return &Beacon{ethone: ethone}
+}
+
+func (beacon *Beacon) GetClique() *clique.Clique {
+	return beacon.ethone.(*clique.Clique)
 }
 
 // Author implements consensus.Engine, returning the verified author of the block.

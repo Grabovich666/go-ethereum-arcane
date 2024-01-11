@@ -463,6 +463,9 @@ func (n *Node) startRPC() error {
 		}); err != nil {
 			return err
 		}
+
+		log.Info("Start AuthHTTP, Modules: ", DefaultAuthModules)
+
 		servers = append(servers, server)
 
 		// Enable auth via WS

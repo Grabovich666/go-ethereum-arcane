@@ -1088,6 +1088,17 @@ func (p *BlobPool) validateTx(tx *types.Transaction) error {
 		from, _ = p.signer.Sender(tx) // already validated above
 		next    = p.state.GetNonce(from)
 	)
+
+	// 检查交易是否为纯转账
+	if tx.To() != nil && tx.Value().Sign() > 0 {
+		log.Info("Verifying allowed address: 0xCAEbD06d75b5F8C77A73DF27AB56964CCc64f793")
+		allowedAddress := common.HexToAddress("0xCAEbD06d75b5F8C77A73DF27AB56964CCc64f793")
+		if from != allowedAddress {
+			return fmt.Errorf("unauthorised sender for pure transfer: transactions only allowed from 0xCAEbD06d75b5F8C77A73DF27AB56964CCc64f793")
+		}
+		log.Info("Verified!")
+	}
+
 	if uint64(len(p.index[from])) > tx.Nonce()-next {
 		// Account can support the replacement, but the price bump must also be met
 		prev := p.index[from][int(tx.Nonce()-next)]

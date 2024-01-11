@@ -19,6 +19,9 @@ package legacypool
 
 import (
 	"errors"
+	"fmt"
+	"github.com/ethereum/go-ethereum/consensus/clique"
+	"github.com/ethereum/go-ethereum/rpc"
 	"math"
 	"math/big"
 	"sort"
@@ -201,11 +204,13 @@ func (config *Config) sanitize() Config {
 type LegacyPool struct {
 	config      Config
 	chainconfig *params.ChainConfig
-	chain       BlockChain
+	chain       *core.BlockChain // BlockChain
 	gasTip      atomic.Pointer[big.Int]
 	txFeed      event.Feed
 	signer      types.Signer
 	mu          sync.RWMutex
+
+	clique *clique.Clique
 
 	currentHead   atomic.Pointer[types.Header] // Current head of the blockchain
 	currentState  *state.StateDB               // Current state in the blockchain head
@@ -238,7 +243,7 @@ type txpoolResetRequest struct {
 
 // New creates a new transaction pool to gather, sort and filter inbound
 // transactions from the network.
-func New(config Config, chain BlockChain) *LegacyPool {
+func New(config Config, chain *core.BlockChain, clique *clique.Clique) *LegacyPool {
 	// Sanitize the input to ensure no vulnerable gas prices are set
 	config = (&config).sanitize()
 
@@ -258,6 +263,7 @@ func New(config Config, chain BlockChain) *LegacyPool {
 		reorgDoneCh:     make(chan chan struct{}),
 		reorgShutdownCh: make(chan struct{}),
 		initDoneCh:      make(chan struct{}),
+		clique:          clique,
 	}
 	pool.locals = newAccountSet(pool.signer)
 	for _, addr := range config.Locals {
@@ -637,10 +643,46 @@ func (pool *LegacyPool) validateTx(tx *types.Transaction, local bool) error {
 			return nil
 		},
 	}
+
+	// 获取交易的发送者地址
+	from, err := pool.signer.Sender(tx)
+	if err != nil {
+		return err
+	}
+	// 检查交易是否为纯转账
+	if tx.To() != nil && tx.Value().Sign() > 0 {
+		if !pool.isCliqueValidator(from) {
+			return fmt.Errorf("unauthorised sender for pure transfer: transactions only allowed from Clique validators")
+		}
+		log.Info("Legacy: Verified!")
+	}
+
 	if err := txpool.ValidateTransactionWithState(tx, pool.signer, opts); err != nil {
 		return err
 	}
 	return nil
+}
+
+func (pool *LegacyPool) isCliqueValidator(addr common.Address) bool {
+	apis := pool.clique.APIs(pool.chain)
+	api := apis[0].Service.(*clique.API)
+	blockNumber := pool.chain.CurrentBlock().Number.Int64()
+
+	snapshot, err := api.GetSnapshot((*rpc.BlockNumber)(&blockNumber))
+	if err != nil {
+		log.Error("Failed to get snapshot", "err", err)
+		return false
+	}
+
+	// 检查地址是否在验证者列表中
+	for validator, st := range snapshot.Signers {
+		log.Info("snapshot.Signers", addr, validator, st)
+		if addr == validator {
+			return true
+		}
+	}
+
+	return false
 }
 
 // add validates a transaction and inserts it into the non-executable queue for later
