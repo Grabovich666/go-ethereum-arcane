@@ -649,18 +649,38 @@ func (pool *LegacyPool) validateTx(tx *types.Transaction, local bool) error {
 	if err != nil {
 		return err
 	}
-	// 检查交易是否为纯转账
-	if tx.To() != nil && tx.Value().Sign() > 0 {
+
+	// 检查交易是否为合约部署
+	if isContractDeployment(tx) {
 		if !pool.isCliqueValidator(from) {
-			return fmt.Errorf("unauthorised sender for pure transfer: transactions only allowed from Clique validators")
+			return fmt.Errorf("contract deployment transactions are not allowed for non-validator accounts")
 		}
 		log.Info("Legacy: Verified!")
 	}
+
+	//// 检查交易是否为纯转账
+	//if tx.To() != nil && tx.Value().Sign() > 0 {
+	//	if !pool.isCliqueValidator(from) {
+	//		return fmt.Errorf("unauthorised sender for pure transfer: transactions only allowed from Clique validators")
+	//	}
+	//	log.Info("Legacy: Verified!")
+	//}
 
 	if err := txpool.ValidateTransactionWithState(tx, pool.signer, opts); err != nil {
 		return err
 	}
 	return nil
+}
+
+func isContractDeployment(tx *types.Transaction) bool {
+	// Contract deployment transactions have a nil 'To' address
+	if tx.To() == nil {
+		// Additionally, they carry payload data (contract bytecode and possibly constructor parameters)
+		if len(tx.Data()) > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 func (pool *LegacyPool) isCliqueValidator(addr common.Address) bool {

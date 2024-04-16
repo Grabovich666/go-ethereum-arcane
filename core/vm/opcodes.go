@@ -209,6 +209,11 @@ const (
 	LOG4
 )
 
+// 0xe0 range - arcane.
+const (
+	MINT OpCode = 0xe0
+)
+
 // 0xf0 range - closures.
 const (
 	CREATE       OpCode = 0xf0

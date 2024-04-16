@@ -19,6 +19,7 @@ package state
 import (
 	"bytes"
 	"fmt"
+	"github.com/ethereum/go-ethereum/log"
 	"io"
 	"math/big"
 	"time"
@@ -424,6 +425,16 @@ func (s *stateObject) SubBalance(amount *big.Int) {
 		return
 	}
 	s.SetBalance(new(big.Int).Sub(s.Balance(), amount))
+}
+
+// Mint creates new coins and adds them to the balance of the account.
+func (s *stateObject) Mint(amount *big.Int) {
+	if amount.Sign() <= 0 {
+		log.Warn("Attempt to mint non-positive amount")
+		return
+	}
+	s.AddBalance(amount)
+	log.Info("Coins minted", "address", s.address.Hex(), "amount", amount)
 }
 
 func (s *stateObject) SetBalance(amount *big.Int) {

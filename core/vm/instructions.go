@@ -847,6 +847,22 @@ func opSelfdestruct6780(pc *uint64, interpreter *EVMInterpreter, scope *ScopeCon
 	return nil, errStopToken
 }
 
+func opMint(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]byte, error) {
+	stack := scope.Stack
+	// Pop amount to mint
+	amount := stack.pop()
+	// Pop address
+	addressBytes := stack.pop()
+	address := common.BytesToAddress(addressBytes.Bytes())
+
+	// 实际的铸币操作，假设已有相应的内部方法来处理
+	interpreter.evm.StateDB.Mint(address, amount.ToBig())
+
+	// 成功执行，PC 指针递增
+	*pc++
+	return nil, nil
+}
+
 // following functions are used by the instruction jump  table
 
 // make log instruction function
